@@ -47,9 +47,9 @@ These decisions establish direction; they are not claims of implementation.
 
 ## Current repository structure and boundary evidence
 
-The current worktree contains the project directories shown in [README.md](../../README.md), including `apps/api/`, `services/`, `packages/`, `migrations/`, `docs/adr/`, `docs/engineering/`, `infra/docker/`, and `tests/`. The current `docs/` directories contain this baseline and the three ADRs. `apps/api/`, `services/`, `packages/`, `migrations/`, `infra/docker/`, and `tests/` have no project files in the inspected tree.
+The current worktree contains the project directories shown in [README.md](../../README.md), including `apps/api/`, `services/`, `packages/`, `migrations/`, `docs/adr/`, `docs/engineering/`, `infra/docker/`, and `tests/`. The `smart_money_ai/` package contains runtime configuration, an application factory, and an ASGI entrypoint; `tests/` contains focused configuration and application tests. `docs/` contains the three ADRs and two engineering documents. `apps/api/`, `services/`, `packages/`, `migrations/`, and `infra/docker/` remain without project files.
 
-The only boundaries that can currently be documented as facts are repository-level directory boundaries and the accepted modular-monolith direction. Directory names do not establish module contracts, ownership, dependencies, or deployment boundaries.
+The repository-level package and entrypoint now provide a small application boundary, alongside the accepted modular-monolith direction. The detailed domain module contracts, ownership rules, dependencies, and deployment boundaries remain undecided. Directory names alone do not establish them.
 
 | Observed path | What current evidence supports | What it does not establish |
 | --- | --- | --- |
@@ -58,14 +58,15 @@ The only boundaries that can currently be documented as facts are repository-lev
 | `packages/` | An empty directory exists. | Shared-package responsibilities or dependency rules. |
 | `migrations/` | An empty directory exists; explicit, versioned migrations are a design requirement. | A schema, migration tool, or migration implementation. |
 | `infra/docker/` | An empty directory exists; Docker Engine/Compose are planned technologies. | A Dockerfile, Compose configuration, or running stack. |
-| `tests/` | An empty directory exists. | A test suite, test runner configuration, or test command. |
+| `smart_money_ai/` | Runtime configuration, a FastAPI application factory, and an ASGI `app` entrypoint exist. | Domain module boundaries, external service wiring, or deployment configuration. |
+| `tests/` | Focused `unittest` tests cover configuration and application initialization/health. | A broader application test suite or configured project test command. |
 | `docs/adr/`, `docs/engineering/` | These contain the three ADRs and this baseline. | Application or operational behavior. |
 
 The Section 17.4 repository list is a historical snapshot, not a substitute for this current worktree inventory. The planned API Service, PostgreSQL, NATS JetStream, and Worker Service are conceptual MVP components; they do not have to be separate deployments unless a future requirement justifies that choice.
 
 ## Module Boundary Design Guidance
 
-This section records architecture guidance and open questions. It describes no implemented modules, packages, or deployments.
+This section records architecture guidance and open questions; it does not define the concrete domain modules, packages, or deployments.
 
 ### Accepted
 
@@ -92,7 +93,7 @@ These proposals require validation against concrete requirements before being tr
 
 ## Planned technology stack
 
-The planned stack is Python, FastAPI, PostgreSQL, NATS JetStream, Docker Engine and Docker Compose, Make, and Git. **uv is accepted** as the Python environment and dependency management tool. The root `pyproject.toml` defines the project metadata and Python compatibility range `>=3.12,<3.15`; it declares no application dependencies. `uv.lock` has not been created because no application dependencies are declared. Add dependencies only when required by real implementation. Metadata validation does not establish that the full Python range has been verified. The planned application and infrastructure technologies are not thereby evidence of installed or running project components.
+The planned stack is Python, FastAPI, PostgreSQL, NATS JetStream, Docker Engine and Docker Compose, Make, and Git. **uv is accepted** as the Python environment and dependency management tool. The root `pyproject.toml` defines the project metadata and Python compatibility range `>=3.12,<3.15`; the application uses FastAPI, and runtime configuration uses `python-dotenv` to read the local `.env` file. `uv.lock` records these dependencies. No database, broker, worker, or infrastructure component is thereby established. Metadata validation does not establish that the full Python range has been verified. The planned infrastructure technologies are not evidence of installed or running project components.
 
 ## Storage and event design concepts
 
@@ -108,7 +109,7 @@ Event records and snapshots are part of the planned storage architecture, while 
 
 ## Secure development configuration
 
-Use `.env.example` as a template and keep real credentials in a local `.env` file excluded from version control. The current template is not consumed by application code. No application configuration loader or secret-management service is established by this documentation.
+Use `.env.example` as a non-secret template and keep real credentials in a local `.env` file excluded from version control. `smart_money_ai.config.load_settings()` loads the supported application settings from `.env` and process environment variables, with process environment values taking precedence. No secret-management service is established by this documentation.
 
 ## Local validation and engineering workflow
 
@@ -145,12 +146,12 @@ These commands validate repository state and documentation/configuration hygiene
 
 ### Not yet available as project validation
 
-- **Tests:** `tests/` is empty; `pytest` is unavailable in the current review shell and no test configuration is present.
+- **Tests:** focused standard-library `unittest` tests cover runtime configuration and application wiring/health; `make test` runs them. There is no broader test suite.
 - **Lint and type checking:** no project configuration is present; `ruff` and `mypy` are unavailable in the current review shell.
-- **API/worker checks:** no API or worker implementation, project test command, or health check exists.
+- **API/worker checks:** a minimal `GET /health` endpoint exists and has focused tests; no worker implementation or broader API test suite exists.
 - **Database/migrations:** no schema, migration files, database configuration, or migration validation is present.
 - **Docker Compose:** `infra/docker/` is empty; no project Compose configuration or service health checks are available. The presence of a Docker executable alone does not provide a project stack.
-- **Make targets:** Make is available in the current review shell, but no Makefile or project targets are present.
+- **Make targets:** `sync`, `run`, `test`, `lock-check`, and `check` are available in the root Makefile. `run` serves the ASGI application on `127.0.0.1:8000`.
 
 Add those validations only when their corresponding project configuration and implementation exist. Do not treat planned tools as current validation commands.
 

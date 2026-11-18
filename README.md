@@ -1,44 +1,117 @@
 # Smart Money AI
 
-Smart Money AI is being developed as a generic platform foundation. Session 1 covers repository and engineering foundations, monorepo structure and module boundaries, secure development configuration, architecture documentation and ADRs, generic application/platform foundations, storage and event design, and local validation and engineering workflow.
-
-Session 1 does not include provider selection or a Solana observation pipeline, wallet/whale/token analysis, trading, prediction, live execution, or AI/domain-agent implementation. Solana remains a target for a later domain phase; Helius has not been selected.
+Smart Money AI is an on-chain intelligence and research application. The project is being built as a Python modular monolith, with domain data quality, provenance, reproducibility, and a small local development footprint as priorities.
 
 ## Project status
 
-- **Planned:** Python, FastAPI, PostgreSQL, NATS JetStream, Docker Engine and Docker Compose, Make, and Git. **Selected:** uv for Python environment and dependency management; `pyproject.toml` defines project metadata for Python `>=3.12,<3.15`. No application dependencies or `uv.lock` are present, and this does not mean dependencies are installed or the application runs.
-- **Documented:** the architecture direction and design decisions are recorded in the [Session 1 baseline](docs/engineering/session-1-baseline.md) and [ADRs](docs/adr/).
-- **Present in worktree:** the current worktree contains documentation, configuration templates, and directory scaffolding, but no application functionality or infrastructure has been implemented. In particular, there is no API, database schema or migration, NATS deployment, worker, or Docker Compose stack.
+### Implemented
 
-## Repository structure
+- Typed runtime settings for application name, environment, and log level. Settings load from `.env` and process environment variables; process environment values take precedence.
+- FastAPI application factory at `smart_money_ai.app:create_app` and ASGI entrypoint at `smart_money_ai.main:app`.
+- `GET /health`, which confirms the application can respond. It does not check dependency readiness.
+- Local developer commands through the Makefile, using uv and the committed lockfile.
 
-Project directories and files currently present:
+### Planned
+
+- PostgreSQL as the planned platform source of truth, subject to concrete data and persistence requirements.
+- NATS JetStream, Docker Engine, and Docker Compose remain technology directions for future needs.
+- On-chain observation, provenance, wallet/token intelligence, research/replay, and risk capabilities belong to future gated domain phases.
+
+### Not implemented
+
+- Database connections, schemas, or migrations.
+- Message broker integration, workers, or a Docker/Compose application stack.
+- Blockchain provider integration, wallet/token analysis, trading/execution, or AI agents.
+- Production deployment or production readiness guarantees.
+
+Generic task lifecycle, workflow orchestration, policy, audit integrity, retry/recovery, and outbox infrastructure belong to the separate Swarm Forge project. Smart Money AI does not duplicate those capabilities and is not integrated with Swarm Forge.
+
+## Requirements
+
+- Python `>=3.12,<3.15`
+- [uv](https://docs.astral.sh/uv/) for environment and dependency management
+- GNU Make
+
+Runtime dependencies are FastAPI, python-dotenv, and Uvicorn. Exact resolved dependency versions are recorded in `uv.lock`. No database, broker, or container runtime is needed for the current application.
+
+## Local development
+
+From the repository root, synchronize the environment:
+
+```sh
+make sync
+```
+
+Optionally copy `.env.example` to `.env` and adjust `APP_NAME`, `APP_ENV`, or `LOG_LEVEL`. The defaults are suitable for local development; `.env` is ignored by Git.
+
+Start the application:
+
+```sh
+make run
+```
+
+The server binds to `127.0.0.1:8000` by default. If that port is occupied, override it, for example with `make run PORT=8001`. Check the process health endpoint in another terminal:
+
+```sh
+curl --fail http://127.0.0.1:8000/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+The health response only means the application process handled the request. It makes no claim about database, broker, or other infrastructure readiness.
+
+## Tests and checks
+
+Run the test suite:
+
+```sh
+make test
+```
+
+Validate lockfile consistency:
+
+```sh
+make lock-check
+```
+
+Run both checks:
+
+```sh
+make check
+```
+
+`make check` runs the lockfile check and unit tests. Each target returns a non-zero exit status if its command fails.
+
+## Repository layout
 
 ```text
 .
 ├── .env.example
 ├── .gitignore
+├── Makefile
 ├── README.md
 ├── pyproject.toml
-├── apps/
-│   └── api/                         # empty scaffold
+├── uv.lock
+├── smart_money_ai/
+│   ├── __init__.py
+│   ├── app.py                 # application factory and /health route
+│   ├── config.py              # typed runtime settings and validation
+│   └── main.py                # ASGI entrypoint
+├── tests/
+│   ├── test_app.py
+│   └── test_config.py
 ├── docs/
-│   ├── adr/
-│   │   ├── 0001-modular-monolith.md
-│   │   ├── 0002-postgresql-source-of-truth.md
-│   │   └── 0003-event-first-design.md
-│   └── engineering/
-│       └── session-1-baseline.md
-├── infra/
-│   └── docker/                      # empty scaffold
-├── migrations/                      # empty scaffold
-├── packages/                        # empty scaffold
-├── services/                        # empty scaffold
-└── tests/                           # empty scaffold
+│   ├── adr/                   # accepted architecture decisions
+│   └── engineering/           # baseline and ownership boundaries
+├── apps/api/                  # empty scaffold
+├── infra/docker/              # empty scaffold
+├── migrations/                # empty scaffold
+├── packages/                  # empty scaffold
+└── services/                  # empty scaffold
 ```
 
-The workspace also has empty `.agents/`, `.aws/`, and `.codex/` directories; they are not application or platform components. Directory names describe repository organization and do not, by themselves, establish module contracts or implementation.
-
-## Development configuration
-
-`.env.example` is a development template; its settings are not consumed by application code yet. Keep real credentials in a local `.env` file and out of version control.
+The empty scaffold directories do not imply implemented services or deployment boundaries. See the [Session 1 baseline](docs/engineering/session-1-baseline.md), [capability ownership boundaries](docs/engineering/capability-ownership.md), and [ADRs](docs/adr/) for design decisions and open questions.
