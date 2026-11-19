@@ -52,7 +52,8 @@ These are Smart Money AI domain responsibilities, but are deferred. They are not
 
 | Capability | Status | Gate before implementation |
 | --- | --- | --- |
-| Blockchain observation and source adapters | Deferred | Define target-chain needs, provider selection, source limits, and provenance requirements. No provider integration is established; Helius is not selected. |
+| Finalized Solana slot observation contract | Existing (fake-only) | The observation contract and deterministic fake adapter are implemented. No provider integration is established. |
+| Blockchain observation and live source adapters | Deferred | Define target-chain needs, provider selection, source limits, and provenance requirements. No provider integration is established; Helius is not selected. |
 | On-chain observations and domain history | Deferred | Define observation identity, timestamps, provenance, retention, and replay needs. |
 | Smart wallet datasets and intelligence | Deferred | Establish dataset scope, evidence quality, and update strategy. |
 | Wallet behavioral profiling and whale forensics | Deferred | Define research questions, methodology, and evidence standards. |
@@ -60,6 +61,8 @@ These are Smart Money AI domain responsibilities, but are deferred. They are not
 | Research, replay, and backtesting | Deferred | Define reproducibility and the historical data needed to support it. |
 | Paper trading, risk management, and execution sandbox | Deferred | Define simulation boundaries, risk controls, and validation gates. |
 | Live execution | Deferred | Requires explicit strict readiness gates, including validated data, controls, monitoring, and operational readiness. |
+
+The finalized slot observation represents a slot reported at finalized commitment; a slot is not block time. `observed_at` records when the adapter obtains the observation, not when a block was produced. The source identity is provider-neutral, and the current adapter is fake-only so the contract can be exercised without network access or provider selection. This milestone excludes RPC integration, persistence, ingestion, transaction or wallet data, and analysis.
 
 ## 4. Infrastructure and data-platform decisions
 
