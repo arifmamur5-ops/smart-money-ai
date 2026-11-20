@@ -5,6 +5,7 @@ from smart_money_ai.solana_observation.interface import (
     FinalizedSlotObserver,
     ObservationError,
 )
+from smart_money_ai.solana_observation.live import LiveFinalizedSlotAdapter
 from smart_money_ai.solana_observation.models import (
     FinalizedSlotObservation,
     NetworkIdentity,
@@ -15,6 +16,7 @@ __all__ = [
     "FakeSolanaObservationAdapter",
     "FinalizedSlotObservation",
     "FinalizedSlotObserver",
+    "LiveFinalizedSlotAdapter",
     "NetworkIdentity",
     "ObservationError",
     "ObservationSource",

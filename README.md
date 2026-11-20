@@ -9,6 +9,7 @@ Smart Money AI is an on-chain intelligence and research application. The project
 - Typed runtime settings for application name, environment, and log level. Settings load from `.env` and process environment variables; process environment values take precedence.
 - FastAPI application factory at `smart_money_ai.app:create_app` and ASGI entrypoint at `smart_money_ai.main:app`.
 - `GET /health`, which confirms the application can respond. It does not check dependency readiness.
+- Provider-neutral, read-only finalized Solana slot observation through the M1 fake and M5 HTTPS JSON-RPC adapter. The live adapter verifies genesis identity on each observation and has not been validated against a live endpoint.
 - Local developer commands through the Makefile, using uv and the committed lockfile.
 
 ### Planned
@@ -21,7 +22,7 @@ Smart Money AI is an on-chain intelligence and research application. The project
 
 - Database connections, schemas, or migrations.
 - Message broker integration, workers, or a Docker/Compose application stack.
-- Blockchain provider integration, wallet/token analysis, trading/execution, or AI agents.
+- Provider selection or live endpoint verification, wallet/token analysis, trading/execution, or AI agents.
 - Production deployment or production readiness guarantees.
 
 Generic task lifecycle, workflow orchestration, policy, audit integrity, retry/recovery, and outbox infrastructure belong to the separate Swarm Forge project. Smart Money AI does not duplicate those capabilities and is not integrated with Swarm Forge.
@@ -33,6 +34,8 @@ Generic task lifecycle, workflow orchestration, policy, audit integrity, retry/r
 - GNU Make
 
 Runtime dependencies are FastAPI, python-dotenv, and Uvicorn. Exact resolved dependency versions are recorded in `uv.lock`. No database, broker, or container runtime is needed for the current application.
+
+The live finalized-slot adapter uses Python's standard library and adds no dependency. See the [M5 adapter notes](docs/engineering/live-finalized-slot-adapter.md) for constructor requirements and the opt-in manual smoke check.
 
 ## Local development
 
@@ -100,10 +103,15 @@ make check
 │   ├── __init__.py
 │   ├── app.py                 # application factory and /health route
 │   ├── config.py              # typed runtime settings and validation
-│   └── main.py                # ASGI entrypoint
+│   ├── main.py                # ASGI entrypoint
+│   └── solana_observation/    # provider-neutral observation models and adapters
 ├── tests/
 │   ├── test_app.py
-│   └── test_config.py
+│   ├── test_config.py
+│   ├── test_solana_observation.py
+│   └── test_solana_live_observation.py
+├── scripts/
+│   └── solana_rpc_smoke.py    # manual opt-in live check; not test discovery
 ├── docs/
 │   ├── adr/                   # accepted architecture decisions
 │   └── engineering/           # baseline and ownership boundaries

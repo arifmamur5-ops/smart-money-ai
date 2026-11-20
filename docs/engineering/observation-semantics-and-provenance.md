@@ -4,9 +4,9 @@
 
 ## Purpose and boundary
 
-This document describes the meaning and provenance of finalized Solana slot observations, records the behavior present in M1, and identifies decisions remaining after the M3 provider evaluation and M4 adapter specification. M3 is a provisional evaluation, not a final provider selection. M4 is a specification, not an implementation; neither establishes live Solana connectivity.
+This document describes the meaning and provenance of finalized Solana slot observations, records the behavior present in M1, and identifies decisions remaining after the M3 provider evaluation, M4 adapter specification, and M5 implementation. M3 is a provisional evaluation, not a final provider selection. M4 is a specification; M5 implements the adapter but does not establish live Solana connectivity.
 
-M1 contains immutable, provider-neutral data models, a synchronous observation protocol, and a deterministic fake adapter. It does not contain RPC response parsing, a polling process, persistence, freshness policy, or a production source. The terms “source” and “observation” below describe the M1 contract unless a section explicitly labels a future proposal.
+M1 contains immutable, provider-neutral data models, a synchronous observation protocol, and a deterministic fake adapter. M5 adds a live HTTPS JSON-RPC adapter that validates responses and verifies genesis identity. The repository still has no polling process, persistence, freshness policy, or production source selection. The terms “source” and “observation” below describe the M1 contract unless a section explicitly labels a later implementation or future proposal.
 
 ## Confirmed M1 contract behavior
 
@@ -82,18 +82,18 @@ The contract describes a sampled value, not a unique event stream. Repeated obse
 
 The base model represents one observation independently. It has no ordering key, request-start time, source comparison rule, or stateful prior observation. Concurrent requests can complete in a different order from submission, so a lower slot can be returned after a higher slot even when each result is valid for its own request. Rejecting regression in the value model would conflate observation validity with a consumer's temporal or source-consistency policy. Any such policy belongs in a later component with explicit ordering and comparison semantics.
 
-## Remaining decisions after M3 and M4 documentation
+## Remaining decisions after M3, M4, and M5
 
-The M3 document compares candidate providers and gives a provisional recommendation. The M4 document specifies a proposed adapter contract and operational behavior. Neither document resolves the following operational and implementation decisions, and neither represents live endpoint verification:
+The M3 document compares candidate providers and gives a provisional recommendation. The M4 document specifies the adapter, and M5 implements that provider-neutral contract. The following operational decisions remain; none represents live endpoint verification:
 
 1. **Final provider selection:** M3 provisionally prefers Chainstack Developer Free and names QuickNode as the comparison/fallback candidate. No provider is selected finally; the comparison and account-level limits remain to be confirmed.
 2. **Live endpoint smoke test:** no real endpoint has been tested. Verify network identity, finalized response shape, endpoint behavior, and latency from the intended deployment region before adopting a provider.
-3. **Operational objectives:** define acceptable observation cadence, timeout budget and total-call deadline, freshness target, clock skew, and any availability objective. M1 defines no such objectives; M4's per-request timeout is a specification-level proposal, not a tested operational choice.
-4. **Implementation decisions:** select a synchronous transport and decide whether its capabilities justify a separately approved dependency. M4 proposes genesis verification on every call and a finite timeout per request; these are specification-level choices, not production-validated behavior. Any change to them requires an explicit implementation decision.
+3. **Operational objectives:** define acceptable observation cadence, timeout budget and total-call deadline, freshness target, clock skew, and any availability objective. M1 defines no such objectives; M5 implements a finite timeout per request, not a production-tested operational choice.
+4. **Live endpoint verification:** test the actual endpoint's response shape, identity, and behavior from the intended deployment region. The M5 adapter has deterministic unit-test coverage but has not been tested against a live endpoint.
 5. **Network identity expectation:** establish the supported cluster labels and authoritative genesis hashes, then verify those values against the selected endpoint. The M1 model itself does not verify the cluster/hash relationship.
-6. **Credential handling and safe diagnostics:** decide how endpoint credentials are stored and rotated, which authentication form is used, and what sanitized status metadata may be logged. M4 requires secret-safe behavior but does not implement or validate it.
+6. **Credential handling and safe diagnostics:** decide how endpoint credentials are stored and rotated and which authentication form is used. M5 suppresses endpoints, credentials, bodies, and low-level exception text from errors and does not log request details; this behavior has not been validated against a provider endpoint.
 7. **Freshness, ordering, and source semantics:** decide how consumers interpret stale observations, regressions, source disagreement, and response context. M1 has no ordering or freshness policy; M4 only specifies one request's response validation.
 8. **Invalid response handling:** define any additional source-specific response validation and diagnostic requirements without changing the confirmed M1 model unless separately approved.
 9. **Evidence lifecycle:** if persistence is proposed later, define retention, deduplication, replay, and audit needs in that storage design. M1 adds no persistence.
 
-These remaining decisions do not undo the completed M3 comparison or M4 specification. They do mean provider selection is provisional, smoke testing has not occurred, and the adapter is not implemented. This document does not authorize RPC, HTTP, WebSocket, gRPC, streaming, polling, persistence, scheduling, or ingestion implementation.
+These remaining decisions do not undo the completed M3 comparison, M4 specification, or M5 adapter implementation. Provider selection remains provisional and no live smoke test has occurred. M5 implements only synchronous read-only HTTPS JSON-RPC calls; it does not implement WebSocket, gRPC, streaming, polling, persistence, scheduling, or ingestion.
