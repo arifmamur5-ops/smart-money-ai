@@ -10,6 +10,7 @@ Smart Money AI is an on-chain intelligence and research application. The project
 - FastAPI application factory at `smart_money_ai.app:create_app` and ASGI entrypoint at `smart_money_ai.main:app`.
 - `GET /health`, which confirms the application can respond. It does not check dependency readiness.
 - Provider-neutral, read-only finalized Solana slot observation through the M1 fake and M5 HTTPS JSON-RPC adapter. The live adapter verifies genesis identity on each observation and has not been validated against a live endpoint.
+- `GET /solana/observations/finalized-slot`, which explicitly requests and returns one finalized slot observation when RPC configuration is valid.
 - Local developer commands through the Makefile, using uv and the committed lockfile.
 
 ### Planned
@@ -45,7 +46,7 @@ From the repository root, synchronize the environment:
 make sync
 ```
 
-Optionally copy `.env.example` to `.env` and adjust `APP_NAME`, `APP_ENV`, or `LOG_LEVEL`. The defaults are suitable for local development; `.env` is ignored by Git.
+Optionally copy `.env.example` to `.env` and adjust `APP_NAME`, `APP_ENV`, or `LOG_LEVEL`. The defaults are suitable for local development; `.env` is ignored by Git. To enable finalized-slot observations, also set `SOLANA_RPC_ENDPOINT`, `SOLANA_CLUSTER`, `SOLANA_GENESIS_HASH`, and `SOLANA_RPC_TIMEOUT_SECONDS`. These values are optional as a group; without them, the app starts normally and the observation endpoint returns HTTP 503. See the [Solana observation API notes](docs/engineering/solana-observation-api.md) for details.
 
 Start the application:
 
@@ -66,6 +67,9 @@ Expected response:
 ```
 
 The health response only means the application process handled the request. It makes no claim about database, broker, or other infrastructure readiness.
+
+The finalized-slot API performs its RPC reads only when requested. It returns configured network identity, slot, finalized commitment, source ID, and local `observed_at` receipt time; it does not return or infer a Solana block timestamp.
+
 
 ## Tests and checks
 
@@ -101,7 +105,7 @@ make check
 ├── uv.lock
 ├── smart_money_ai/
 │   ├── __init__.py
-│   ├── app.py                 # application factory and /health route
+│   ├── app.py                 # application factory, health, and observation routes
 │   ├── config.py              # typed runtime settings and validation
 │   ├── main.py                # ASGI entrypoint
 │   └── solana_observation/    # provider-neutral observation models and adapters
@@ -109,7 +113,7 @@ make check
 │   ├── test_app.py
 │   ├── test_config.py
 │   ├── test_solana_observation.py
-│   └── test_solana_live_observation.py
+│   ├── test_solana_live_observation.py
 ├── scripts/
 │   └── solana_rpc_smoke.py    # manual opt-in live check; not test discovery
 ├── docs/

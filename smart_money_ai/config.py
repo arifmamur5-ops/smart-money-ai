@@ -39,6 +39,13 @@ class Settings:
     app_name: str = _DEFAULT_APP_NAME
     environment: Environment = _DEFAULT_APP_ENV
     log_level: LogLevel = _DEFAULT_LOG_LEVEL
+    # Preserve raw optional RPC values so invalid RPC configuration can be
+    # reported by the observation endpoint without preventing app startup.
+    solana_rpc_endpoint: str | None = None
+    solana_cluster: str | None = None
+    solana_genesis_hash: str | None = None
+    solana_rpc_timeout_seconds: str | None = None
+    solana_rpc_source_id: str = "application-rpc"
 
 
 def load_settings(
@@ -82,4 +89,20 @@ def load_settings(
         allowed = ", ".join(item.value for item in LogLevel)
         raise ConfigurationError(f"LOG_LEVEL must be one of: {allowed}") from exc
 
-    return Settings(app_name=app_name, environment=environment, log_level=log_level)
+    def optional_value(name: str) -> str | None:
+        value = values.get(name)
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    return Settings(
+        app_name=app_name,
+        environment=environment,
+        log_level=log_level,
+        solana_rpc_endpoint=optional_value("SOLANA_RPC_ENDPOINT"),
+        solana_cluster=optional_value("SOLANA_CLUSTER"),
+        solana_genesis_hash=optional_value("SOLANA_GENESIS_HASH"),
+        solana_rpc_timeout_seconds=optional_value("SOLANA_RPC_TIMEOUT_SECONDS"),
+        solana_rpc_source_id=optional_value("SOLANA_RPC_SOURCE_ID") or "application-rpc",
+    )

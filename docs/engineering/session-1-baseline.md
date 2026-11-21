@@ -58,8 +58,8 @@ The repository-level package and entrypoint now provide a small application boun
 | `packages/` | An empty directory exists. | Shared-package responsibilities or dependency rules. |
 | `migrations/` | An empty directory exists; explicit, versioned migrations are a design requirement. | A schema, migration tool, or migration implementation. |
 | `infra/docker/` | An empty directory exists; Docker Engine/Compose are planned technologies. | A Dockerfile, Compose configuration, or running stack. |
-| `smart_money_ai/` | Runtime configuration, a FastAPI application factory, and an ASGI `app` entrypoint exist. | Domain module boundaries, external service wiring, or deployment configuration. |
-| `tests/` | Focused `unittest` tests cover configuration and application initialization/health. | A broader application test suite or configured project test command. |
+| `smart_money_ai/` | Runtime configuration, a FastAPI application factory, health and finalized-slot observation routes, and an ASGI `app` entrypoint exist. | Broader domain module boundaries, deployment configuration, or live endpoint verification. |
+| `tests/` | Focused `unittest` tests cover configuration, application initialization/health, and deterministic finalized-slot API behavior. | A broader application test suite or live RPC verification. |
 | `docs/adr/`, `docs/engineering/` | These contain the three ADRs and this baseline. | Application or operational behavior. |
 
 The Section 17.4 repository list is a historical snapshot, not a substitute for this current worktree inventory. The planned API Service, PostgreSQL, NATS JetStream, and Worker Service are conceptual MVP components; they do not have to be separate deployments unless a future requirement justifies that choice.
@@ -148,7 +148,7 @@ These commands validate repository state and documentation/configuration hygiene
 
 - **Tests:** focused standard-library `unittest` tests cover runtime configuration and application wiring/health; `make test` runs them. There is no broader test suite.
 - **Lint and type checking:** no project configuration is present; `ruff` and `mypy` are unavailable in the current review shell.
-- **API/worker checks:** a minimal `GET /health` endpoint exists and has focused tests; no worker implementation or broader API test suite exists.
+- **API/worker checks:** `GET /health` and `GET /solana/observations/finalized-slot` exist with focused tests. The latter uses mocked observation dependencies in tests and makes no claim about live endpoint behavior. No worker implementation exists.
 - **Database/migrations:** no schema, migration files, database configuration, or migration validation is present.
 - **Docker Compose:** `infra/docker/` is empty; no project Compose configuration or service health checks are available. The presence of a Docker executable alone does not provide a project stack.
 - **Make targets:** `sync`, `run`, `test`, `lock-check`, and `check` are available in the root Makefile. `run` serves the ASGI application on `127.0.0.1:8000`.
