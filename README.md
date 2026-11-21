@@ -115,8 +115,10 @@ make check
 ├── tests/
 │   ├── test_app.py
 │   ├── test_config.py
+│   ├── test_solana_api.py
 │   ├── test_solana_observation.py
 │   ├── test_solana_live_observation.py
+│   ├── test_solana_rpc_smoke.py
 │   └── test_wallet_dataset.py
 ├── scripts/
 │   └── solana_rpc_smoke.py    # manual opt-in live check; not test discovery

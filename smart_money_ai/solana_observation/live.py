@@ -13,11 +13,11 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from smart_money_ai.solana_observation.interface import ObservationError
 from smart_money_ai.solana_observation.models import (
     FinalizedSlotObservation,
+    MAX_U64_SLOT,
     NetworkIdentity,
     ObservationSource,
 )
 
-_MAX_U64 = (1 << 64) - 1
 _MAX_RPC_RESPONSE_BYTES = 64 * 1024
 _Transport = Callable[[Request, float], Any]
 
@@ -113,7 +113,7 @@ class LiveFinalizedSlotAdapter:
             raise ObservationError("getGenesisHash did not match the configured network")
 
         slot = self._rpc_call("getSlot", [{"commitment": "finalized"}], 2)
-        if isinstance(slot, bool) or not isinstance(slot, int) or not 0 <= slot <= _MAX_U64:
+        if isinstance(slot, bool) or not isinstance(slot, int) or not 0 <= slot <= MAX_U64_SLOT:
             raise ObservationError("getSlot returned an invalid slot value")
 
         try:

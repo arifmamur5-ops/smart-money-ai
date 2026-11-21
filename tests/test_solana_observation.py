@@ -78,11 +78,20 @@ class FinalizedSlotObservationTests(unittest.TestCase):
         self.assertEqual(observation.slot, 0)
         self.assertEqual(observation.commitment, "finalized")
 
+    def test_accepts_maximum_uint64_slot(self) -> None:
+        observation = self.make_observation(slot=(1 << 64) - 1)
+
+        self.assertEqual(observation.slot, (1 << 64) - 1)
+
     def test_rejects_negative_boolean_and_non_integer_slots(self) -> None:
         for slot, error in ((-1, ValueError), (True, TypeError), (1.5, TypeError)):
             with self.subTest(slot=slot):
                 with self.assertRaises(error):
                     self.make_observation(slot=slot)
+
+    def test_rejects_slot_above_uint64_maximum(self) -> None:
+        with self.assertRaises(ValueError):
+            self.make_observation(slot=1 << 64)
 
     def test_rejects_non_finalized_commitment(self) -> None:
         with self.assertRaises(ValueError):

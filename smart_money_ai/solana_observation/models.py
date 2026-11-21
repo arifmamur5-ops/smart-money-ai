@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Literal
 
+MAX_U64_SLOT = (1 << 64) - 1
+
 
 @dataclass(frozen=True, slots=True)
 class NetworkIdentity:
@@ -51,8 +53,8 @@ class FinalizedSlotObservation:
             raise TypeError("network must be a NetworkIdentity")
         if isinstance(self.slot, bool) or not isinstance(self.slot, int):
             raise TypeError("slot must be an integer")
-        if self.slot < 0:
-            raise ValueError("slot must be non-negative")
+        if not 0 <= self.slot <= MAX_U64_SLOT:
+            raise ValueError("slot must be between 0 and 2**64 - 1")
         if self.commitment != "finalized":
             raise ValueError('commitment must be "finalized"')
         if not isinstance(self.source, ObservationSource):
