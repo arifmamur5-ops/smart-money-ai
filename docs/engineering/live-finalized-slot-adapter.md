@@ -16,17 +16,19 @@ The adapter validates HTTPS URL structure, HTTP success, UTF-8 JSON, the JSON-RP
 
 The standard-library `urllib` transport verifies TLS certificates using its normal default context. Redirects are rejected before they can be followed, so credentials in the endpoint are not sent to a redirected destination. Error messages do not include the endpoint, credentials, response body, or underlying exception text; no request or response logging is performed. There are no retries.
 
+Each individual RPC response body is read with a 64 KiB upper bound. The adapter reads at most one byte beyond that bound to detect oversize responses and rejects them without parsing or including response content in the error; there is no aggregate byte limit across the two-request operation. A normally returned response is context-managed, so it is closed on success, non-success status, oversized-body rejection, and read failures handled by the context manager. `urllib.error.HTTPError` responses are explicitly closed before being mapped to a sanitized `ObservationError`; redirect responses are closed by the redirect handler before rejection. A cleanup `OSError` while closing an `HTTPError` does not replace the sanitized mapping for the original HTTP failure. Transport failures such as `URLError` that do not provide an acquired response have no response resource to close.
+
 ## Validation commands
 
 Run ordinary tests with `make test` (or `uv run --locked python -m unittest discover -s tests -v`). Tests inject the HTTP transport and do not access the public internet.
 
-An optional live smoke check can be run manually after setting `SOLANA_RPC_ENDPOINT`, `SOLANA_CLUSTER`, and `SOLANA_GENESIS_HASH` in the local environment; `SOLANA_SOURCE_ID` defaults to `manual-smoke`, and `SOLANA_RPC_TIMEOUT` defaults to 10 seconds:
+An optional live smoke check can be run manually after setting `SOLANA_RPC_ENDPOINT`, `SOLANA_CLUSTER`, `SOLANA_GENESIS_HASH`, and `SOLANA_RPC_TIMEOUT_SECONDS` in the local environment or `.env`. The script uses the same `load_settings()` configuration as the application; `SOLANA_RPC_SOURCE_ID` defaults to `application-rpc`:
 
 ```sh
 python -m scripts.solana_rpc_smoke
 ```
 
-It invokes only `getGenesisHash` and finalized `getSlot`, prints safe observation fields on success, and suppresses failure details. It is not collected by ordinary test discovery and is not run automatically. A successful invocation verifies only that the configured endpoint responded consistently during that invocation; it is not a provider reliability benchmark, production readiness result, or final provider selection.
+It invokes only `getGenesisHash` and finalized `getSlot`, prints safe observation fields on success, and suppresses failure details. It is not collected by ordinary test discovery and is not run automatically. A successful invocation verifies only that the configured endpoint responded consistently during that invocation; it is not a provider reliability benchmark, production readiness result, or final provider selection. See the [provider qualification framework](solana-provider-qualification.md) before using it as qualification evidence.
 
 ## Limitations
 

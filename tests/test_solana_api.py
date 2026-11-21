@@ -31,8 +31,11 @@ class _Response:
     def __exit__(self, *_args: object) -> None:
         return None
 
-    def read(self) -> bytes:
-        return self.payload
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            size = len(self.payload)
+        chunk, self.payload = self.payload[:size], self.payload[size:]
+        return chunk
 
 
 class _FixedObserver:

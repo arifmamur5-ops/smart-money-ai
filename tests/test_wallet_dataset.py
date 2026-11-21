@@ -244,6 +244,46 @@ class WalletDatasetContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SourceRun("r", "s", "q", STAMP, self.network, window_start_slot=5, window_end_slot=4)
 
+    def test_run_window_may_extend_past_cutoff_but_facts_may_not(self) -> None:
+        run = replace(self.run_record(), window_start_slot=8, window_end_slot=12)
+        fact_at_cutoff = self.fact(slot=10)
+        evidence_at_cutoff = self.evidence(
+            "activity-at-cutoff",
+            evidence_type=EvidenceType.TRANSACTION_REFERENCE,
+            activity_fact_id=fact_at_cutoff.fact_id,
+        )
+
+        snapshot = build_snapshot(
+            definition=self.definition,
+            network=self.network,
+            finalized_cutoff_slot=10,
+            generated_at=STAMP,
+            source_runs=(run,),
+            source_evidence=(evidence_at_cutoff,),
+            activity_facts=(fact_at_cutoff,),
+        )
+
+        self.assertEqual(snapshot.source_runs[0].window_start_slot, 8)
+        self.assertEqual(snapshot.source_runs[0].window_end_slot, 12)
+        self.assertEqual(snapshot.activity_facts, (fact_at_cutoff,))
+
+        fact_after_cutoff = self.fact(slot=11)
+        evidence_after_cutoff = self.evidence(
+            "activity-after-cutoff",
+            evidence_type=EvidenceType.TRANSACTION_REFERENCE,
+            activity_fact_id=fact_after_cutoff.fact_id,
+        )
+        with self.assertRaisesRegex(ValueError, "activity fact slot exceeds the finalized snapshot cutoff"):
+            build_snapshot(
+                definition=self.definition,
+                network=self.network,
+                finalized_cutoff_slot=10,
+                generated_at=STAMP,
+                source_runs=(run,),
+                source_evidence=(evidence_after_cutoff,),
+                activity_facts=(fact_after_cutoff,),
+            )
+
 
 class WalletDatasetSnapshotTests(unittest.TestCase):
     setUp = WalletDatasetContractTests.setUp

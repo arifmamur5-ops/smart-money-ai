@@ -49,4 +49,4 @@ Responses contain stable error codes and generic messages. Endpoint credentials,
 
 ## Boundary and limitations
 
-The route is synchronous at the observer boundary and performs RPC reads only for an explicit GET request. It does not implement retries, polling, persistence, ingestion, provider selection/failover, block timestamp lookup, or trading. It does not establish endpoint reliability, freshness, or production readiness. The API and adapter have deterministic unit tests; no live RPC endpoint is validated by these tests.
+The route is synchronous at the observer boundary and performs RPC reads only for an explicit GET request. It does not implement retries, polling, persistence, ingestion, provider selection/failover, block timestamp lookup, or trading. It does not establish endpoint reliability, freshness, or production readiness. The API tests invoke the registered handler directly and check its returned data; they do not exercise full ASGI request dispatch or HTTP response serialization. No live RPC endpoint is validated by these tests.

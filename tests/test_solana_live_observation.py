@@ -1,6 +1,7 @@
 """Deterministic tests for the live adapter's HTTP transport boundary."""
 
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 import json
 from unittest import TestCase
 from urllib.error import HTTPError, URLError
@@ -12,27 +13,59 @@ from smart_money_ai.solana_observation import (
     NetworkIdentity,
     ObservationError,
 )
-from smart_money_ai.solana_observation.live import _NoRedirectHandler, _RedirectRejected
+from smart_money_ai.solana_observation.live import (
+    _MAX_RPC_RESPONSE_BYTES,
+    _NoRedirectHandler,
+    _RedirectRejected,
+)
 
 
 class _Response:
-    def __init__(self, payload: object, status: int = 200) -> None:
+    def __init__(
+        self,
+        payload: object,
+        status: int = 200,
+        *,
+        content_length: str | None = None,
+    ) -> None:
         self.status = status
-        self._payload = payload
+        if isinstance(payload, bytes):
+            self._body = payload
+        else:
+            self._body = json.dumps(payload).encode("utf-8")
+        self.headers = {} if content_length is None else {"Content-Length": content_length}
+        self.closed = False
+        self.read_sizes: list[int] = []
 
     def __enter__(self) -> "_Response":
         return self
 
     def __exit__(self, *_args: object) -> None:
+        self.closed = True
         return None
 
     def getcode(self) -> int:
         return self.status
 
-    def read(self) -> bytes:
-        if isinstance(self._payload, bytes):
-            return self._payload
-        return json.dumps(self._payload).encode("utf-8")
+    def read(self, size: int = -1) -> bytes:
+        self.read_sizes.append(size)
+        if size < 0:
+            size = len(self._body)
+        chunk, self._body = self._body[:size], self._body[size:]
+        return chunk
+
+
+class _TrackedBody(BytesIO):
+    def __init__(self, payload: bytes, *, fail_on_close: bool = False) -> None:
+        super().__init__(payload)
+        self.close_called = False
+        self.fail_on_close = fail_on_close
+
+    def close(self) -> None:
+        self.close_called = True
+        super().close()
+        if self.fail_on_close:
+            raise OSError("private cleanup detail")
 
 
 class LiveFinalizedSlotAdapterTests(TestCase):
@@ -70,16 +103,35 @@ class LiveFinalizedSlotAdapterTests(TestCase):
     def test_redirect_handler_rejects_redirect_request(self) -> None:
         request = Request(self.endpoint, data=b"request", method="POST")
         handler = _NoRedirectHandler()
+        response_file = _TrackedBody(b"redirect response body")
 
         with self.assertRaises(_RedirectRejected):
             handler.redirect_request(
                 request,
-                None,
+                response_file,
                 307,
                 "Temporary Redirect",
                 {},
                 "https://redirect.example.invalid/target",
             )
+        self.assertTrue(response_file.close_called)
+
+    def test_redirect_cleanup_failure_does_not_replace_redirect_rejection(self) -> None:
+        request = Request(self.endpoint, data=b"request", method="POST")
+        handler = _NoRedirectHandler()
+        response_file = _TrackedBody(b"redirect response body", fail_on_close=True)
+
+        with self.assertRaises(_RedirectRejected):
+            handler.redirect_request(
+                request,
+                response_file,
+                307,
+                "Temporary Redirect",
+                {},
+                "https://redirect.example.invalid/target",
+            )
+
+        self.assertTrue(response_file.close_called)
 
     def test_adapter_maps_redirect_rejection_without_exposing_endpoint(self) -> None:
         adapter = self.adapter([_RedirectRejected()])
@@ -150,9 +202,11 @@ class LiveFinalizedSlotAdapterTests(TestCase):
         )
         for payload, reason in cases:
             with self.subTest(reason=reason):
-                adapter = self.adapter([_Response(payload if isinstance(payload, bytes) else payload)])
+                response = _Response(payload)
+                adapter = self.adapter([response])
                 with self.assertRaisesRegex(ObservationError, reason):
                     adapter.get_finalized_slot()
+                self.assertTrue(response.closed)
 
     def test_raw_response_body_is_not_exposed(self) -> None:
         secret_body = b"provider response contains private-token and account details"
@@ -161,6 +215,88 @@ class LiveFinalizedSlotAdapterTests(TestCase):
             adapter.get_finalized_slot()
         self.assertNotIn("private-token", str(raised.exception))
         self.assertNotIn("account details", str(raised.exception))
+
+    def test_http_error_body_is_closed_and_mapped_without_sensitive_details(self) -> None:
+        raw_body = b"provider returned private-token Authorization: Bearer secret-value"
+        response_file = _TrackedBody(raw_body)
+        failure = HTTPError(
+            self.endpoint,
+            500,
+            f"transport detail private-token {raw_body.decode()}",
+            {},
+            response_file,
+        )
+        adapter = self.adapter([failure])
+
+        with self.assertRaises(ObservationError) as raised:
+            adapter.get_finalized_slot()
+
+        self.assertEqual(str(raised.exception), "getGenesisHash returned an HTTP error")
+        self.assertTrue(response_file.close_called)
+        for sensitive in (self.endpoint, "private-token", "Authorization", "secret-value", raw_body.decode()):
+            self.assertNotIn(sensitive, str(raised.exception))
+        self.assertIsNone(raised.exception.__cause__)
+
+    def test_http_error_cleanup_failure_does_not_replace_sanitized_transport_error(self) -> None:
+        response_file = _TrackedBody(b"private response", fail_on_close=True)
+        failure = HTTPError(self.endpoint, 500, "private transport detail", {}, response_file)
+        adapter = self.adapter([failure])
+
+        with self.assertRaises(ObservationError) as raised:
+            adapter.get_finalized_slot()
+
+        self.assertEqual(str(raised.exception), "getGenesisHash returned an HTTP error")
+        self.assertTrue(response_file.close_called)
+        self.assertNotIn(self.endpoint, str(raised.exception))
+        self.assertNotIn("private", str(raised.exception))
+
+    def test_normal_http_status_rejection_closes_response(self) -> None:
+        response = _Response(b"private error body", status=503)
+        adapter = self.adapter([response])
+
+        with self.assertRaisesRegex(ObservationError, "HTTP error"):
+            adapter.get_finalized_slot()
+
+        self.assertTrue(response.closed)
+
+    def test_malformed_json_response_is_closed(self) -> None:
+        response = _Response(b"{")
+        adapter = self.adapter([response])
+
+        with self.assertRaisesRegex(ObservationError, "invalid JSON"):
+            adapter.get_finalized_slot()
+
+        self.assertTrue(response.closed)
+
+    def test_response_within_size_limit_is_accepted_and_closed(self) -> None:
+        genesis_response = _Response(self.rpc(self.genesis, 1))
+        slot_response = _Response(self.rpc(1234, 2))
+        adapter = self.adapter([genesis_response, slot_response])
+
+        observation = adapter.get_finalized_slot()
+
+        self.assertEqual(observation.slot, 1234)
+        for response in (genesis_response, slot_response):
+            self.assertTrue(response.closed)
+            self.assertEqual(response.read_sizes, [_MAX_RPC_RESPONSE_BYTES + 1])
+
+    def test_oversized_response_is_rejected_and_closed_without_trusting_content_length(self) -> None:
+        for content_length in (None, "1"):
+            with self.subTest(content_length=content_length):
+                response = _Response(
+                    b"x" * (_MAX_RPC_RESPONSE_BYTES + 1),
+                    content_length=content_length,
+                )
+                adapter = self.adapter([response])
+
+                with self.assertRaisesRegex(ObservationError, "maximum permitted size") as raised:
+                    adapter.get_finalized_slot()
+
+                self.assertTrue(response.closed)
+                self.assertEqual(response.read_sizes, [_MAX_RPC_RESPONSE_BYTES + 1])
+                self.assertNotIn(self.endpoint, str(raised.exception))
+                self.assertNotIn("private-token", str(raised.exception))
+                self.assertNotIn("x" * 100, str(raised.exception))
 
     def test_http_redirect_and_transport_failures_are_safe(self) -> None:
         for failure in (

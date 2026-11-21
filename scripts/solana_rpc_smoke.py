@@ -1,26 +1,34 @@
 """Opt-in live read-only smoke check; invoke with ``python -m scripts.solana_rpc_smoke``."""
 
-import os
 import sys
 
+from smart_money_ai.config import Settings, load_settings
 from smart_money_ai.solana_observation import LiveFinalizedSlotAdapter, NetworkIdentity, ObservationError
 
 
-def main() -> int:
-    endpoint = os.environ.get("SOLANA_RPC_ENDPOINT")
-    cluster = os.environ.get("SOLANA_CLUSTER")
-    genesis_hash = os.environ.get("SOLANA_GENESIS_HASH")
-    source_id = os.environ.get("SOLANA_SOURCE_ID", "manual-smoke")
-    timeout = os.environ.get("SOLANA_RPC_TIMEOUT", "10")
-    if not endpoint or not cluster or not genesis_hash:
-        print("Set SOLANA_RPC_ENDPOINT, SOLANA_CLUSTER, and SOLANA_GENESIS_HASH to run the smoke check.")
+def main(settings: Settings | None = None) -> int:
+    runtime_settings = settings if settings is not None else load_settings()
+    endpoint = runtime_settings.solana_rpc_endpoint
+    cluster = runtime_settings.solana_cluster
+    genesis_hash = runtime_settings.solana_genesis_hash
+    timeout = runtime_settings.solana_rpc_timeout_seconds
+    if (
+        endpoint is None or not endpoint.strip()
+        or cluster is None or not cluster.strip()
+        or genesis_hash is None or not genesis_hash.strip()
+        or timeout is None or not timeout.strip()
+    ):
+        print(
+            "Set SOLANA_RPC_ENDPOINT, SOLANA_CLUSTER, SOLANA_GENESIS_HASH, and "
+            "SOLANA_RPC_TIMEOUT_SECONDS to run the smoke check."
+        )
         return 2
 
     try:
         adapter = LiveFinalizedSlotAdapter(
             endpoint=endpoint,
             network=NetworkIdentity(cluster=cluster, genesis_hash=genesis_hash),
-            source_id=source_id,
+            source_id=runtime_settings.solana_rpc_source_id,
             timeout=float(timeout),
         )
         observation = adapter.get_finalized_slot()

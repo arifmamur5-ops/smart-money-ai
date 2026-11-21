@@ -18,6 +18,7 @@ from smart_money_ai.solana_observation.models import (
 )
 
 _MAX_U64 = (1 << 64) - 1
+_MAX_RPC_RESPONSE_BYTES = 64 * 1024
 _Transport = Callable[[Request, float], Any]
 
 
@@ -27,6 +28,12 @@ class _RedirectRejected(Exception):
 
 class _NoRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, req: Request, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> None:
+        if fp is not None:
+            try:
+                fp.close()
+            except OSError:
+                # Preserve redirect rejection as the public outcome.
+                pass
         raise _RedirectRejected
 
 
@@ -145,10 +152,17 @@ class LiveFinalizedSlotAdapter:
                     status = response.getcode()
                 if not isinstance(status, int) or not 200 <= status < 300:
                     raise ObservationError(f"{method} returned an HTTP error")
-                raw_body = response.read()
+                raw_body = response.read(_MAX_RPC_RESPONSE_BYTES + 1)
+                if len(raw_body) > _MAX_RPC_RESPONSE_BYTES:
+                    raise ObservationError(f"{method} response exceeded the maximum permitted size")
         except _RedirectRejected:
             raise ObservationError(f"{method} redirect was rejected") from None
         except HTTPError as exc:
+            try:
+                exc.close()
+            except OSError:
+                # Preserve the sanitized mapping for the original HTTP failure.
+                pass
             if 300 <= exc.code < 400:
                 raise ObservationError(f"{method} redirect was rejected") from None
             raise ObservationError(f"{method} returned an HTTP error") from None
