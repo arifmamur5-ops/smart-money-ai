@@ -11,6 +11,7 @@ Smart Money AI is an on-chain intelligence and research application. The project
 - `GET /health`, which confirms the application can respond. It does not check dependency readiness.
 - Provider-neutral, read-only finalized Solana slot observation through the M1 fake and M5 HTTPS JSON-RPC adapter. The live adapter verifies genesis identity on each observation and has not been validated against a live endpoint.
 - `GET /solana/observations/finalized-slot`, which explicitly requests and returns one finalized slot observation when RPC configuration is valid.
+- Offline, researcher-curated Smart Wallet Dataset domain contracts and deterministic snapshot/digest construction. No wallet data is collected by this capability.
 - Local developer commands through the Makefile, using uv and the committed lockfile.
 
 ### Planned
@@ -70,6 +71,7 @@ The health response only means the application process handled the request. It m
 
 The finalized-slot API performs its RPC reads only when requested. It returns configured network identity, slot, finalized commitment, source ID, and local `observed_at` receipt time; it does not return or infer a Solana block timestamp.
 
+The Smart Wallet Dataset package currently supports offline seed registration, provenance references, conservative optional activity facts, and reproducible finite snapshots. It does not query RPC history, store snapshots, or establish historical activity completeness. See the [dataset domain contract](docs/engineering/smart-wallet-dataset.md).
 
 ## Tests and checks
 
@@ -108,17 +110,19 @@ make check
 │   ├── app.py                 # application factory, health, and observation routes
 │   ├── config.py              # typed runtime settings and validation
 │   ├── main.py                # ASGI entrypoint
-│   └── solana_observation/    # provider-neutral observation models and adapters
+│   ├── solana_observation/    # provider-neutral observation models and adapters
+│   └── wallet_dataset/       # offline dataset contracts and deterministic snapshots
 ├── tests/
 │   ├── test_app.py
 │   ├── test_config.py
 │   ├── test_solana_observation.py
 │   ├── test_solana_live_observation.py
+│   └── test_wallet_dataset.py
 ├── scripts/
 │   └── solana_rpc_smoke.py    # manual opt-in live check; not test discovery
 ├── docs/
 │   ├── adr/                   # accepted architecture decisions
-│   └── engineering/           # baseline and ownership boundaries
+│   └── engineering/           # baseline, ownership, and domain contracts
 ├── apps/api/                  # empty scaffold
 ├── infra/docker/              # empty scaffold
 ├── migrations/                # empty scaffold

@@ -55,7 +55,8 @@ These are Smart Money AI domain responsibilities, but are deferred. They are not
 | Finalized Solana slot observation contract | Existing | The provider-neutral observation contract, fake adapter, and synchronous HTTPS JSON-RPC adapter are implemented. The API invokes the adapter only on request. |
 | Blockchain observation and live source adapters | Existing (limited) | Only finalized-slot reads are implemented. No provider is selected or live endpoint verified; Helius is not selected. Broader source needs remain deferred. |
 | On-chain observations and domain history | Deferred | Define observation identity, timestamps, provenance, retention, and replay needs. |
-| Smart wallet datasets and intelligence | Deferred | Establish dataset scope, evidence quality, and update strategy. |
+| Smart wallet dataset domain foundation | Existing (offline only) | Versioned researcher-curated membership, provenance, optional normalized activity facts, and deterministic snapshots exist in `smart_money_ai.wallet_dataset`; no wallet source, ingestion, persistence, scoring, or classification is implemented. |
+| Wallet intelligence and profiling | Deferred | Establish research methodology and evidence standards before adding profiling, scoring, classification, or other analysis. |
 | Wallet behavioral profiling and whale forensics | Deferred | Define research questions, methodology, and evidence standards. |
 | Token/protocol intelligence | Deferred | Define target coverage and the source/evidence model. |
 | Research, replay, and backtesting | Deferred | Define reproducibility and the historical data needed to support it. |
